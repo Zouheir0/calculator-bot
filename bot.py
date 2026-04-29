@@ -1,13 +1,14 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import os
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 # =========================
-# BOT READY EVENT
+# READY EVENT
 # =========================
 @bot.event
 async def on_ready():
@@ -20,61 +21,107 @@ async def on_ready():
 
 
 # =========================
-# COMMAND 1: SELL CALCULATOR
+# HELPER: PARSE NUMBERS (M, B, K)
+# =========================
+def parse_number(value: str) -> float:
+    value = value.lower().replace(",", "").strip()
+
+    if value.endswith("k"):
+        return float(value[:-1]) * 1_000
+    elif value.endswith("m"):
+        return float(value[:-1]) * 1_000_000
+    elif value.endswith("b"):
+        return float(value[:-1]) * 1_000_000_000
+    else:
+        return float(value)
+
+
+# =========================
+# HELPER: FORMAT NUMBERS
+# =========================
+def format_number(num: float) -> str:
+    if num >= 1_000_000_000:
+        return f"{num/1_000_000_000:.2f}B"
+    elif num >= 1_000_000:
+        return f"{num/1_000_000:.2f}M"
+    elif num >= 1_000:
+        return f"{num/1_000:.2f}K"
+    else:
+        return f"{num:.2f}"
+
+
+# =========================
+# COMMAND 1: SELL
 # =========================
 @bot.tree.command(name="sell", description="Calculate oil selling profit")
 @app_commands.describe(
-    price="Price per unit of oil",
-    amount="Amount of oil you have",
-    boost="Cash boost percentage (optional, e.g. 160 for 160%)"
+    price="Price per unit (example: 5)",
+    amount="Oil amount (example: 34.5M)",
+    boost="Cash boost % (optional, example: 160)"
 )
-async def sell(interaction: discord.Interaction, price: float, amount: float, boost: float = 0):
-    base = price * amount
+async def sell(
+    interaction: discord.Interaction,
+    price: str,
+    amount: str,
+    boost: float = 0.0
+):
+    try:
+        price_val = parse_number(price)
+        amount_val = parse_number(amount)
 
-    multiplier = 1 + (boost / 100)
-    total = base * multiplier
-    extra = total - base
+        base = price_val * amount_val
+        multiplier = 1 + (boost / 100.0)
 
-    await interaction.response.send_message(
-        f"🛢️ **Oil Sell Calculator**\n"
-        f"Base: `{base:,.2f}$`\n"
-        f"Boost: `{boost}%`\n"
-        f"Bonus: `+{extra:,.2f}$`\n"
-        f"Total: `{total:,.2f}$`"
-    )
+        total = base * multiplier
+        extra = total - base
+
+        await interaction.response.send_message(
+            f"🛢️ **Sell Calculator**\n"
+            f"Base: `{format_number(base)}$`\n"
+            f"Boost: `{boost}%`\n"
+            f"Bonus: `+{format_number(extra)}$`\n"
+            f"Total: `{format_number(total)}$`"
+        )
+
+    except Exception:
+        await interaction.response.send_message("❌ Invalid input. Example: price=5 amount=34.5M boost=160")
 
 
 # =========================
-# COMMAND 2: PRODUCTION CALCULATOR
+# COMMAND 2: PRODUCTION
 # =========================
 @bot.tree.command(name="production", description="Calculate oil production over time")
 @app_commands.describe(
-    rate_per_second="Oil per second production",
+    rate="Oil per second (example: 10K)",
     seconds="Seconds (optional)",
     hours="Hours (optional)",
     days="Days (optional)"
 )
 async def production(
     interaction: discord.Interaction,
-    rate_per_second: float,
-    seconds: float = 0,
-    hours: float = 0,
-    days: float = 0
+    rate: str,
+    seconds: float = 0.0,
+    hours: float = 0.0,
+    days: float = 0.0
 ):
-    total_seconds = seconds + (hours * 3600) + (days * 86400)
+    try:
+        rate_val = parse_number(rate)
 
-    total = rate_per_second * total_seconds
+        total_seconds = seconds + (hours * 3600.0) + (days * 86400.0)
+        total = rate_val * total_seconds
 
-    await interaction.response.send_message(
-        f"⛽ **Production Calculator**\n"
-        f"Rate: `{rate_per_second}/s`\n"
-        f"Time: `{total_seconds} seconds`\n"
-        f"Total Oil: `{total:,.2f}`"
-    )
+        await interaction.response.send_message(
+            f"⛽ **Production Calculator**\n"
+            f"Rate: `{format_number(rate_val)}/s`\n"
+            f"Time: `{total_seconds:,.0f} seconds`\n"
+            f"Total Oil: `{format_number(total)}`"
+        )
+
+    except Exception:
+        await interaction.response.send_message("❌ Invalid input. Example: rate=10K hours=5")
 
 
 # =========================
 # RUN BOT
 # =========================
-import os
 bot.run(os.getenv("DISCORD_TOKEN"))
