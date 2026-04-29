@@ -77,4 +77,4 @@ async def production(
 # RUN BOT
 # =========================
 import os
-bot.run(os.getenv("MTQ5ODczMzAzMjQ2NTQ5ODE0Mg.G-iNP1.m0xMA13MTOK7Hq_zx3-ObQy76TUVrqkMLluY7Q"))
+bot.run(os.getenv("DISCORD_TOKEN"))
