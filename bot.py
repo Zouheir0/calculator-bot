@@ -21,37 +21,54 @@ async def on_ready():
 
 
 # =========================
-# PARSE NUMBER (K, M, B, T)
+# NUMBER SCALE SYSTEM
+# =========================
+suffixes = [
+    "", "K", "M", "B", "T",
+    "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"
+]
+
+
+# =========================
+# PARSE NUMBER
 # =========================
 def parse_number(value: str) -> float:
     value = value.lower().replace(",", "").strip()
 
-    if value.endswith("k"):
-        return float(value[:-1]) * 1_000
-    elif value.endswith("m"):
-        return float(value[:-1]) * 1_000_000
-    elif value.endswith("b"):
-        return float(value[:-1]) * 1_000_000_000
-    elif value.endswith("t"):
-        return float(value[:-1]) * 1_000_000_000_000
-    else:
-        return float(value)
+    multipliers = {
+        "k": 1e3,
+        "m": 1e6,
+        "b": 1e9,
+        "t": 1e12,
+        "qa": 1e15,
+        "qi": 1e18,
+        "sx": 1e21,
+        "sp": 1e24,
+        "oc": 1e27,
+        "no": 1e30,
+        "dc": 1e33
+    }
+
+    for suffix, mult in multipliers.items():
+        if value.endswith(suffix):
+            return float(value[:-len(suffix)]) * mult
+
+    return float(value)
 
 
 # =========================
-# FORMAT NUMBER (UP TO TRILLION)
+# FORMAT NUMBER (ADVANCED)
 # =========================
 def format_number(num: float) -> str:
-    if num >= 1_000_000_000_000:
-        return f"{round(num / 1_000_000_000_000, 2)}T"
-    elif num >= 1_000_000_000:
-        return f"{round(num / 1_000_000_000, 2)}B"
-    elif num >= 1_000_000:
-        return f"{round(num / 1_000_000, 2)}M"
-    elif num >= 1_000:
-        return f"{round(num / 1_000, 2)}K"
-    else:
-        return f"{round(num, 2)}"
+    if num == 0:
+        return "0"
+
+    index = 0
+    while num >= 1000 and index < len(suffixes) - 1:
+        num /= 1000
+        index += 1
+
+    return f"{round(num, 2)}{suffixes[index]}"
 
 
 # =========================
@@ -59,9 +76,9 @@ def format_number(num: float) -> str:
 # =========================
 @bot.tree.command(name="sell", description="Oil Empire sell calculator")
 @app_commands.describe(
-    price="Price per unit (example: 10)",
-    amount="Oil amount (example: 62.8M)",
-    boost="Cash boost % (example: 160)"
+    price="Price per unit",
+    amount="Oil amount (e.g. 62.8M)",
+    boost="Cash boost %"
 )
 async def sell(interaction: discord.Interaction, price: str, amount: str, boost: float):
     try:
@@ -79,21 +96,21 @@ async def sell(interaction: discord.Interaction, price: str, amount: str, boost:
 
         embed.add_field(name="Base Value", value=f"${format_number(base)}", inline=False)
         embed.add_field(name="Cash Boost", value=f"{boost}%", inline=True)
-        embed.add_field(name="Bonus Earned", value=f"+${format_number(bonus)}", inline=True)
-        embed.add_field(name="Total Profit", value=f"💰 ${format_number(total)}", inline=False)
+        embed.add_field(name="Bonus", value=f"+${format_number(bonus)}", inline=True)
+        embed.add_field(name="Total", value=f"💰 ${format_number(total)}", inline=False)
 
         await interaction.response.send_message(embed=embed)
 
     except:
-        await interaction.response.send_message("❌ Invalid input. Example: /sell price:10 amount:62.8M boost:160")
+        await interaction.response.send_message("❌ Invalid input")
 
 
 # =========================
 # PRODUCTION COMMAND
 # =========================
-@bot.tree.command(name="production", description="Calculate oil production over time")
+@bot.tree.command(name="production", description="Oil production calculator")
 @app_commands.describe(
-    rate="Oil per second (example: 10K)",
+    rate="Oil per second (e.g. 10K)",
     seconds="Seconds",
     minutes="Minutes",
     hours="Hours",
@@ -110,7 +127,6 @@ async def production(
     try:
         rate_val = parse_number(rate)
 
-        # Determine which time was used
         if days > 0:
             time_value = days
             unit = "day(s)"
@@ -131,18 +147,18 @@ async def production(
         total = rate_val * total_seconds
 
         embed = discord.Embed(
-            title="⛽ Oil Production Calculator",
+            title="⛽ Oil Production",
             color=discord.Color.blue()
         )
 
-        embed.add_field(name="Production Rate", value=f"{format_number(rate_val)}/s", inline=False)
+        embed.add_field(name="Rate", value=f"{format_number(rate_val)}/s", inline=False)
         embed.add_field(name="Time", value=f"{time_value} {unit}", inline=True)
         embed.add_field(name="Total Oil", value=f"🛢️ {format_number(total)}", inline=False)
 
         await interaction.response.send_message(embed=embed)
 
     except:
-        await interaction.response.send_message("❌ Invalid input. Example: /production rate:10K hours:5")
+        await interaction.response.send_message("❌ Invalid input")
 
 
 # =========================
