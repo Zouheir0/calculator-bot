@@ -37,7 +37,7 @@ drills = {
 # =========================
 # STORAGE
 # =========================
-privates = {}  # {user_id: [links]}
+privates = {}
 
 # =========================
 # HELPERS
@@ -63,14 +63,20 @@ def progress_bar(p):
 
 # =========================
 # /SELL
+# FIX: boost default MUST be float
 # =========================
 @bot.tree.command(name="sell", description="Calculate money from selling gas")
 @app_commands.describe(
-    gas="Amount of gas (supports k/m/b/t)",
+    gas="Amount of gas (k/m/b/t)",
     price="Sell price (0-15)",
     boost="Cash boost %"
 )
-async def sell(interaction: discord.Interaction, gas: str, price: float, boost: float = 0):
+async def sell(
+    interaction: discord.Interaction,
+    gas: str,
+    price: float,
+    boost: float = 0.0
+):
     gas_val = parse_number(gas)
     total = gas_val * price * (1 + boost/100)
     bonus = total - (gas_val * price)
@@ -88,9 +94,9 @@ async def sell(interaction: discord.Interaction, gas: str, price: float, boost: 
 # =========================
 @bot.tree.command(name="production", description="Calculate gas production over time")
 @app_commands.describe(
-    rate="Gas per second (supports k/m/b/t)",
+    rate="Gas per second",
     time="Time amount",
-    unit="s = seconds, m = minutes, h = hours, d = days"
+    unit="s/m/h/d"
 )
 async def production(interaction: discord.Interaction, rate: str, time: float, unit: str):
 
@@ -110,7 +116,7 @@ async def production(interaction: discord.Interaction, rate: str, time: float, u
     await interaction.response.send_message(embed=embed)
 
 # =========================
-# DRILL CHOICES (DROPDOWN)
+# DRILL CHOICES
 # =========================
 drill_choices = [
     app_commands.Choice(name=name, value=name) for name in drills.keys()
@@ -119,13 +125,13 @@ drill_choices = [
 # =========================
 # /DRILLAFFORD
 # =========================
-@bot.tree.command(name="drillafford", description="Analyze if you can afford a drill")
+@bot.tree.command(name="drillafford", description="Analyze drill affordability")
 @app_commands.describe(
-    drill="Select a drill",
-    cash="Current cash (k/m/b/t)",
-    gas_per_sec="Gas per second (k/m/b/t)",
+    drill="Select drill",
+    cash="Current cash",
+    gas_per_sec="Gas per second",
     boost="Cash boost %",
-    price="Sell price (0-15)",
+    price="Sell price",
     amount="Amount of drills"
 )
 @app_commands.choices(drill=drill_choices)
@@ -153,22 +159,22 @@ async def drillafford(
     time_sec = missing / income_sec if income_sec > 0 else 0
 
     embed = discord.Embed(
-        title=f"⚙️ {drill.value}\nDrill Affordability Analysis",
+        title=f"⚙️ {drill.value} Drill Analysis",
         color=0xffaa00
     )
 
-    embed.add_field(name="💰 Cost", value=format_number(price_d))
-    embed.add_field(name="📦 Amount", value=amount)
-    embed.add_field(name="📄 Total", value=format_number(total_cost))
-    embed.add_field(name="💵 Cash", value=format_number(cash_val))
-    embed.add_field(name="⚡ Gas/sec", value=format_number(gas_val))
-    embed.add_field(name="💸 Income/sec", value=format_number(income_sec))
-    embed.add_field(name="✅ Can Buy", value=can_buy)
-    embed.add_field(name="📉 Missing", value=format_number(missing))
+    embed.add_field(name="Cost", value=format_number(price_d))
+    embed.add_field(name="Amount", value=amount)
+    embed.add_field(name="Total", value=format_number(total_cost))
+    embed.add_field(name="Cash", value=format_number(cash_val))
+    embed.add_field(name="Gas/sec", value=format_number(gas_val))
+    embed.add_field(name="Income/sec", value=format_number(income_sec))
+    embed.add_field(name="Can Buy", value=can_buy)
+    embed.add_field(name="Missing", value=format_number(missing))
 
     if missing > 0:
         embed.add_field(
-            name="⏰ Time Needed",
+            name="Time Needed",
             value=f"{format_number(time_sec)} sec\n{format_number(time_sec/3600)} hrs\n{format_number(time_sec/86400)} days",
             inline=False
         )
@@ -180,19 +186,15 @@ async def drillafford(
 # =========================
 # PRIVATE SERVERS
 # =========================
-@bot.tree.command(name="addprivate", description="Add a private server link")
+@bot.tree.command(name="addprivate", description="Add private server link")
 async def addprivate(interaction: discord.Interaction, link: str):
 
     uid = interaction.user.id
-
-    if uid not in privates:
-        privates[uid] = []
-
-    privates[uid].append(link)
+    privates.setdefault(uid, []).append(link)
 
     await interaction.response.send_message("✅ Added")
-    
-@bot.tree.command(name="removeprivate", description="Remove your private server")
+
+@bot.tree.command(name="removeprivate", description="Remove private server")
 async def removeprivate(interaction: discord.Interaction, index: int):
 
     uid = interaction.user.id
@@ -201,10 +203,10 @@ async def removeprivate(interaction: discord.Interaction, index: int):
         await interaction.response.send_message("❌ Invalid index")
         return
 
-    privates[uid].pop(index-1)
+    privates[uid].pop(index - 1)
     await interaction.response.send_message("🗑️ Removed")
 
-@bot.tree.command(name="privates", description="Show all private servers")
+@bot.tree.command(name="privates", description="Show private servers")
 async def privates_cmd(interaction: discord.Interaction):
 
     embed = discord.Embed(title="🔗 Private Servers", color=0x00ffcc)
@@ -220,13 +222,12 @@ async def privates_cmd(interaction: discord.Interaction):
             )
 
     embed.set_footer(text="U.E.O")
-
     await interaction.response.send_message(embed=embed)
 
 # =========================
 # /GOAL
 # =========================
-@bot.tree.command(name="goal", description="Calculate time to reach a cash goal")
+@bot.tree.command(name="goal", description="Time to reach goal")
 async def goal(
     interaction: discord.Interaction,
     gas_per_sec: str,
@@ -242,7 +243,6 @@ async def goal(
     needed = goal_val - current
 
     income_sec = gas_val * (1 + boost/100)
-    income_hr = income_sec * 3600
 
     percent = current / goal_val if goal_val > 0 else 0
     time_sec = needed / income_sec if income_sec > 0 else 0
@@ -251,24 +251,15 @@ async def goal(
     h = int((time_sec % 86400) // 3600)
     m = int((time_sec % 3600) // 60)
 
-    embed = discord.Embed(title="🎯 Cash Goal Calculator", color=0x00ff99)
+    embed = discord.Embed(title="🎯 Goal Calculator", color=0x00ff99)
 
-    embed.add_field(name="🎯 Goal", value=format_number(goal_val))
-    embed.add_field(name="💵 Current Cash", value=format_number(current))
-    embed.add_field(name="📦 Still Needed", value=format_number(needed))
-    embed.add_field(name="⛽ Rate/sec", value=format_number(gas_val))
-    embed.add_field(name="⚡ Boost", value=f"{boost}%")
-    embed.add_field(name="💰 Cash/hr", value=format_number(income_hr))
-
-    embed.add_field(
-        name="📊 Progress",
-        value=f"{progress_bar(percent)} {percent*100:.1f}%"
-    )
-
-    embed.add_field(
-        name="⏰ Time to Goal",
-        value=f"{d}d {h}h {m}m"
-    )
+    embed.add_field(name="Goal", value=format_number(goal_val))
+    embed.add_field(name="Current", value=format_number(current))
+    embed.add_field(name="Needed", value=format_number(needed))
+    embed.add_field(name="Rate/sec", value=format_number(gas_val))
+    embed.add_field(name="Boost", value=f"{boost}%")
+    embed.add_field(name="Progress", value=f"{progress_bar(percent)} {percent*100:.1f}%")
+    embed.add_field(name="Time", value=f"{d}d {h}h {m}m")
 
     embed.set_footer(text="U.E.O")
 
