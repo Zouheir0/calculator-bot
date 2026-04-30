@@ -61,7 +61,7 @@ def progress_bar(p):
 # /SELL
 # =========================
 @bot.tree.command(name="sell")
-async def sell(interaction: discord.Interaction, gas: float, price: float, boost: float = 0):
+async def sell(interaction: discord.Interaction, gas: float, price: float, boost: float = 0.0):
 
     base = gas * price
     total = base * (1 + boost/100)
@@ -119,10 +119,18 @@ async def drills_cmd(interaction: discord.Interaction):
 # /AFFORD
 # =========================
 @bot.tree.command(name="afford")
-async def afford(interaction: discord.Interaction, drill: str, cash: str, gas_per_sec: float, boost: float, gas_price: float, amount: int):
+async def afford(
+    interaction: discord.Interaction,
+    drill: str,
+    cash: str,
+    gas_per_sec: float,
+    boost: float,
+    gas_price: float,
+    amount: int
+):
 
     if drill not in drills:
-        await interaction.response.send_message("Invalid drill")
+        await interaction.response.send_message("❌ Invalid drill")
         return
 
     d = drills[drill]
@@ -187,7 +195,7 @@ async def goal(interaction: discord.Interaction, gas_per_sec: float, boost: floa
     embed = discord.Embed(title="🎯 Cash Goal Calculator", color=0x2ecc71)
 
     embed.add_field(name="🎯 Goal", value=format_number(goal_val))
-    embed.add_field(name="💵 Current", value=format_number(current))
+    embed.add_field(name="💵 Current Cash", value=format_number(current))
     embed.add_field(name="📦 Still Needed", value=format_number(needed))
     embed.add_field(name="⛽ Rate/sec", value=format_number(gas_per_sec))
     embed.add_field(name="⚡ Boost", value=f"{boost}%")
@@ -231,13 +239,16 @@ async def privates_cmd(interaction: discord.Interaction):
 
     embed = discord.Embed(title="🔗 Private Servers", color=0x3498db)
 
-    for user, links in privates.items():
-        for i, link in enumerate(links, 1):
-            embed.add_field(
-                name=f"{user}'s private {i}",
-                value=link,
-                inline=False
-            )
+    if not privates:
+        embed.description = "No private servers added yet."
+    else:
+        for user, links in privates.items():
+            for i, link in enumerate(links, 1):
+                embed.add_field(
+                    name=f"{user}'s private {i}",
+                    value=link,
+                    inline=False
+                )
 
     await interaction.response.send_message(embed=embed)
 
